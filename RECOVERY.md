@@ -7,7 +7,7 @@
 - `delivery.claim.configure_protection(receiver, dispatch_ids)` 在 `initialize_delivery` 之后调用。`dispatch_ids` 是非空的外发号序列，每个标识唯一。同一外站的保护名单固定。开站或换盘时，操作员在开放领取前调用本入口，再执行恢复。
 - `delivery.claim.restore_protected(receiver, call_custody, *, checkpoint=None)` 从独立保管端取得该外站及名单的已确认事实，恢复正式日报、首执和所有成功请求的绑定。返回 `None`。首次启用时可以没有确认记录。把就绪和整批恢复一并提交。恢复提交前调用 `checkpoint("before_restore_commit")`，回调抛错时整次安装撤销，替代盘的保护领取保持关闭。可再次恢复相同事实。
 - `delivery.claim.claim_protected(receiver, call_custody, dispatch_id, request_id)` 在恢复成功后办理名单内领取，成功返回现有的 `ClaimResult`，状态为 `claimed`。保管确认先于外站正式出账与成功返回。已确认的请求同参重投或使用新请求复领都返回同一日报和首执。新请求复领成功也须持久绑定到此日报。
-- `audit.custody.Custody(path, destination)` 打开或重开固定外站的独立 SQLite 保管库。实例可按 `call_custody(operation, payload)` 调用。使 `confirm` 调用的成功返回表示本次保管确认已持久化，`recovery` 调用用于读取恢复所需的完整确认事实。其余载荷、回应和内部存储表示由实现决定。两库各自提交，外站只经此调用取得保管结果。保管端核对外站、确切外发绑定、日报正文与首执的一致性，重复办理不能改写已确认的绑定或首执。
+- `audit.custody.Custody(path, destination)` 打开或重开固定外站的独立 SQLite 保管库。实例可按 `call_custody(operation, payload)` 调用，即 `custody(operation, payload)`。`confirm` 载荷为确切事实字典，字段含 `dispatch_id`、`report_id`、`report_revision`、`destination`、`fingerprint`、`material`、`first_request_id` 及有序的 `request_ids`（首项等于 `first_request_id`）；成功返回表示本次保管确认已持久化的同一事实字典。`recovery` 载荷为 `{"destination": ...}`，返回该外站全部确认事实的列表，供整批恢复读取。两库各自提交，外站只经此调用取得保管结果。保管端核对外站、确切外发绑定、日报正文与首执的一致性（含指纹与报告身份），重复办理不能改写已确认的绑定或首执，只能在事实一致时追加新的成功请求绑定；错站、指纹或正文不符、首执变更均抛 `ValueError`。
 
 名单内的普通 `claim` 在配置后须拒绝，且不能占用请求号。名单外照用原接口，两种领取沿用同一外站的请求号归属规则。换绑、错站、材料矛盾、名单外使用保护领取或保护入口尚未开放时抛出 `ValueError`。保管调用或恢复检查点的异常由调用方收到。待确认候选在正式账和首执入口不可见。成功安装后可通过已有 `delivery.ledger.read_posting` 和 `delivery.receipts.read_receipt` 核对外站正式结果。恢复只涉及名单内事实，旧盘中已有的普通日报及首执继续可领。
 

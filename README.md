@@ -19,6 +19,10 @@
 | `delivery.admit.admit(receiver, binding, material)` | 校验并保存实收正文，返回 `DeliveryEntry`。材料待办时仍无领取资格。调用 `dispatch.resume.resume_handoff(source, receiver, dispatch_id)` 可完成或续办接办，也可用其 `material=` 投递实际收到的正文。 |
 | `delivery.claim.claim(receiver, dispatch_id, request_id)` | 返回 `ClaimResult`，状态为 `pending`、`withdrawn` 或 `claimed`。签收结果包含固定 `report` 及原 `receipt`。复领允许使用原请求号或同一外发号下的新领取请求号。 |
 | `dispatch.withdraw.withdraw(source, receiver, dispatch_id, request_id)` | 返回 `pending`、`withdrawn` 或 `claimed`。外站不可用时可用 `None`，已经确认的终局仍可重放。 |
+| `delivery.claim.configure_protection(receiver, dispatch_ids)` | 固定本外站的保护外发号名单（非空、唯一）。名单一经配置即固定，重复调用须给出同一集合。配置后名单内日报的普通 `claim` 一律拒绝且不占请求号。 |
+| `delivery.claim.restore_protected(receiver, call_custody, *, checkpoint=None)` | 从独立保管端整批恢复已确认事实（确切日报、首执、每次成功领取的请求绑定），就绪与恢复在同一事务提交；`before_restore_commit` 回调抛错则整次撤销，保护领取保持关闭。可重复恢复相同事实。 |
+| `delivery.claim.claim_protected(receiver, call_custody, dispatch_id, request_id)` | 恢复开放后办理名单内领取：保管确认先于正式出账。复领沿用原首执，新请求仍占号并持久绑定；改领另一日报按请求冲突拒绝。 |
+| `audit.custody.Custody(path, destination)` | 固定外站的独立 SQLite 保管库，按 `custody(operation, payload)` 提供 `confirm` 与 `recovery`，换盘时仍保留。详见 RECOVERY.md。 |
 | `audit.history.review(source, receiver, reviews, dispatch_id)` | 保存并返回 `ReviewRecord`。`audit.record.read_reviews(reviews, dispatch_id)` 按记录顺序复读历史。 |
 
 观测采用 `{"liters": 7, "source": "北站纸簿第 1 行"}` 或 `{"missing": "探头停测", "source": "北站值班记录第 3 行"}`。另一字段可省略或为 `None`。升数用 Python 整数精确累计，布尔值无效。原行位置从 1 起，日报中的选批次序从 0 起。重复选择同一批修订时，各次选择按列表位置分别计量。分站按有明细的站点首次出现次序排列。空日没有明细或分站小计。

@@ -29,3 +29,16 @@ CREATE TABLE IF NOT EXISTS receipts (
     fingerprint TEXT NOT NULL,
     request_id TEXT NOT NULL UNIQUE REFERENCES claim_requests(request_id)
 );
+CREATE TABLE IF NOT EXISTS protection_roster (
+    dispatch_id TEXT NOT NULL PRIMARY KEY
+);
+CREATE TABLE IF NOT EXISTS protection_state (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    ready INTEGER NOT NULL CHECK (ready IN (0, 1))
+);
+CREATE TABLE IF NOT EXISTS protected_requests (
+    dispatch_id TEXT NOT NULL,
+    request_id TEXT NOT NULL PRIMARY KEY,
+    ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+    FOREIGN KEY (dispatch_id) REFERENCES protection_roster(dispatch_id)
+);
